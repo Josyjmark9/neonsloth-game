@@ -1,0 +1,116 @@
+{
+  "entities": {
+    "player": {
+      "title": "Player",
+      "description": "A unique player in the game.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The unique username chosen by the player."
+        },
+        "highScore": {
+          "type": "integer",
+          "description": "The player's personal high score."
+        },
+        "totalGamesPlayed": {
+          "type": "integer",
+          "description": "Total number of games played by the player."
+        },
+        "totalMinutesPlayed": {
+          "type": "number",
+          "description": "Total minutes spent playing the game."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the player first registered."
+        }
+      },
+      "required": ["name", "highScore", "totalGamesPlayed", "totalMinutesPlayed", "createdAt"]
+    },
+    "globalStats": {
+      "title": "Global Stats",
+      "description": "Universal game statistics.",
+      "type": "object",
+      "properties": {
+        "totalPlayers": {
+          "type": "integer",
+          "description": "Total number of unique players."
+        },
+        "universalHighScore": {
+          "type": "integer",
+          "description": "The highest score ever achieved."
+        },
+        "highScorerName": {
+          "type": "string",
+          "description": "The name of the current universal high scorer."
+        }
+      },
+      "required": ["totalPlayers", "universalHighScore", "highScorerName"]
+    },
+    "dailyStats": {
+      "title": "Daily Stats",
+      "description": "Statistics for a specific day.",
+      "type": "object",
+      "properties": {
+        "count": {
+          "type": "integer",
+          "description": "Number of unique players on this day."
+        }
+      },
+      "required": ["count"]
+    },
+    "chatMessage": {
+      "title": "Chat Message",
+      "description": "A message sent in a chat room.",
+      "type": "object",
+      "properties": {
+        "sender": {
+          "type": "string",
+          "description": "The name of the sender."
+        },
+        "text": {
+          "type": "string",
+          "description": "The content of the message."
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the message was sent."
+        }
+      },
+      "required": ["sender", "text", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/players/{name}": {
+      "schema": "player",
+      "description": "Collection of unique players, keyed by their username."
+    },
+    "/players/{name}/friends/{friendName}": {
+      "schema": "object",
+      "description": "A friend of the player."
+    },
+    "/globalChat/{messageId}": {
+      "schema": "chatMessage",
+      "description": "Global chat messages."
+    },
+    "/privateChats/{chatId}/messages/{messageId}": {
+      "schema": "chatMessage",
+      "description": "Private chat messages between two friends."
+    },
+    "/globalStats/main": {
+      "schema": "globalStats",
+      "description": "Single document containing global game statistics."
+    },
+    "/dailyStats/{date}": {
+      "schema": "dailyStats",
+      "description": "Daily activity tracking."
+    },
+    "/dailyStats/{date}/activePlayers/{playerName}": {
+      "schema": "object",
+      "description": "Marker for a player being active on a specific day."
+    }
+  }
+}

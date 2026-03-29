@@ -1,0 +1,95 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+             request.auth.token.email == "josiahjohnmark9@gmail.com" && 
+             request.auth.token.email_verified == true;
+    }
+    
+    function isValidPlayer(data) {
+      return data.keys().hasAll(['name', 'highScore', 'totalGamesPlayed', 'totalMinutesPlayed', 'createdAt']) &&
+             data.name is string && data.name.size() >= 3 && data.name.size() <= 20 &&
+             data.highScore is int && data.highScore >= 0 &&
+             data.totalGamesPlayed is int && data.totalGamesPlayed >= 0 &&
+             (data.totalMinutesPlayed is number || data.totalMinutesPlayed is int) && data.totalMinutesPlayed >= 0 &&
+             data.createdAt is string;
+    }
+
+    function isValidGlobalStats(data) {
+      return data.keys().hasAll(['totalPlayers', 'universalHighScore', 'highScorerName']) &&
+             data.totalPlayers is int && data.totalPlayers >= 0 &&
+             data.universalHighScore is int && data.universalHighScore >= 0 &&
+             data.highScorerName is string;
+    }
+
+    function isValidChatMessage(data) {
+      return data.keys().hasAll(['sender', 'text', 'timestamp']) &&
+             data.sender is string && data.text is string && data.text.size() <= 500 &&
+             data.timestamp is string;
+    }
+
+    // Players Collection
+    match /players/{name} {
+      // Allow anyone to check if a name exists (for registration)
+      allow get: if true;
+      // Allow creating a new player if the name matches the document ID
+      allow create: if isValidPlayer(request.resource.data) && request.resource.data.name == name;
+      // Allow updating high score if it's a valid update
+      allow update: if isValidPlayer(request.resource.data) && request.resource.data.name == name;
+      
+      // Friends Subcollection
+      match /friends/{friendName} {
+        allow read: if true;
+        allow create, delete: if true; // Simplified for now
+      }
+    }
+
+    // Global Chat
+    match /globalChat/{messageId} {
+      allow read: if true;
+      allow create: if isValidChatMessage(request.resource.data);
+    }
+
+    // Private Chats
+    match /privateChats/{chatId} {
+      allow read: if true; // Simplified for now
+      match /messages/{messageId} {
+        allow read: if true;
+        allow create: if isValidChatMessage(request.resource.data);
+      }
+    }
+
+    // Global Stats
+    match /globalStats/main {
+      allow read: if true;
+      // Allow updates to global stats (incrementing player count or updating high score)
+      allow update: if isValidGlobalStats(request.resource.data);
+      // Allow initial creation (usually done manually or via first player)
+      allow create: if isValidGlobalStats(request.resource.data);
+    }
+
+    // Daily Stats
+    match /dailyStats/{date} {
+      allow read: if isAdmin();
+      allow get: if true;
+      allow create, update: if true; // Simplified for DAU tracking logic
+      
+      match /activePlayers/{playerName} {
+        allow get: if true;
+        allow create: if true;
+      }
+    }
+
+    // Admin access to all players for dashboard
+    match /players/{name} {
+      allow list: if isAdmin();
+    }
+  }
+}
