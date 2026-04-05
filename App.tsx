@@ -1,22 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Play, RotateCcw, Trophy, Zap, Info, User, ChevronRight, BarChart3 } from 'lucide-react';
-import { doc, getDoc, setDoc, updateDoc, onSnapshot, increment, runTransaction } from 'firebase/firestore';
+import { Play, RotateCcw, Trophy, Zap, Info, User, ChevronRight, BarChart3, X, MessageSquare } from 'lucide-react';
+import { doc, getDoc, setDoc, updateDoc, onSnapshot, increment, runTransaction, collection, query, orderBy, limit, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import GameCanvas from './components/GameCanvas';
 import AboutDeveloper from './components/AboutDeveloper';
+import AboutGame from './components/AboutGame';
 import AdminDashboard from './components/AdminDashboard';
-import FriendsSidebar from './components/FriendsSidebar';
 import FeedbackModal from './components/FeedbackModal';
 import LeaderboardModal from './components/LeaderboardModal';
 import { GameState, GlobalStats, PlayerData } from './types';
-import { Users as UsersIcon, Star, Trophy as TrophyIcon } from 'lucide-react';
+import { Star, Trophy as TrophyIcon, Volume2, VolumeX } from 'lucide-react';
+import { soundManager } from './lib/sound';
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [showAbout, setShowAbout] = useState(false);
+  const [showGameInfo, setShowGameInfo] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
-  const [showFriends, setShowFriends] = useState(false);
+  const [isMuted, setIsMuted] = useState(soundManager.getIsMuted());
   const [showReview, setShowReview] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [logoClickCount, setLogoClickCount] = useState(0);
@@ -45,7 +47,11 @@ export default function App() {
         if (minutesPlayed > 0.01) { // Only track if played for more than 0.6 seconds
           updateDoc(doc(db, 'players', gameState.playerName), {
             totalMinutesPlayed: increment(minutesPlayed)
-          }).catch(err => console.error("Error updating play time:", err));
+          }).catch(err => console.error("Error updating player play time:", err));
+
+          updateDoc(doc(db, 'globalStats', 'main'), {
+            totalMinutesPlayed: increment(minutesPlayed)
+          }).catch(err => console.error("Error updating global play time:", err));
         }
       };
     }
@@ -124,7 +130,7 @@ export default function App() {
 
   const handleRegisterName = async (e: React.FormEvent) => {
     e.preventDefault();
-    const name = playerNameInput.trim().toLowerCase();
+    const name = playerNameInput.trim();
     if (name.length < 3) {
       setNameError('Name must be at least 3 characters');
       return;
@@ -168,11 +174,49 @@ export default function App() {
     }
   };
 
+  const handleSkipRegistration = async () => {
+    const guestId = Math.floor(1000 + Math.random() * 9000);
+    const guestName = `Guest_${guestId}`;
+    
+    try {
+      const newPlayer: PlayerData = {
+        name: guestName,
+        highScore: 0,
+        totalGamesPlayed: 0,
+        totalMinutesPlayed: 0,
+        hasRated: false,
+        createdAt: new Date().toISOString()
+      };
+      await setDoc(doc(db, 'players', guestName), newPlayer);
+      
+      await updateDoc(doc(db, 'globalStats', 'main'), {
+        totalPlayers: increment(1)
+      });
+
+      localStorage.setItem('playerName', guestName);
+      setGameState(prev => ({ 
+        ...prev, 
+        playerName: guestName,
+        hasRated: false,
+        totalGamesPlayed: 0
+      }));
+      setShowNameInput(false);
+      setNameError('');
+    } catch (err) {
+      console.error('Skip registration error:', err);
+      // Fallback to local only if firebase fails
+      setGameState(prev => ({ ...prev, playerName: guestName }));
+      setShowNameInput(false);
+    }
+  };
+
   const startGame = () => {
     if (!gameState.playerName) {
       setShowNameInput(true);
       return;
     }
+    soundManager.playSFX('click');
+    soundManager.playBGM();
     setGameState((prev) => ({
       ...prev,
       isStarted: true,
@@ -181,8 +225,9 @@ export default function App() {
     }));
   };
 
-  const handleGameOver = async (finalScore: number) => {
-    const isNewPersonalBest = finalScore > gameState.highScore;
+  const handleGameOver = React.useCallback(async (finalScore: number) => {
+    soundManager.playSFX('gameOver');
+    soundManager.stopBGM();
     const isNewUniversalBest = globalStats && finalScore > globalStats.universalHighScore;
 
     // Update Player High Score and Games Played in Firestore
@@ -192,6 +237,10 @@ export default function App() {
         highScore: Math.max(gameState.highScore, finalScore),
         totalGamesPlayed: increment(1)
       }).catch(err => console.error("Error updating player stats:", err));
+
+      updateDoc(doc(db, 'globalStats', 'main'), {
+        totalGamesPlayed: increment(1)
+      }).catch(err => console.error("Error updating global games played:", err));
 
       // Show review modal after a short delay on game over
       // ONLY if it's their first game and they haven't rated yet
@@ -224,6 +273,14 @@ export default function App() {
         universalHighScore: finalScore,
         highScorerName: gameState.playerName
       }).catch(err => console.error("Error updating universal high score:", err));
+    }
+  }, [gameState.playerName, gameState.highScore, gameState.totalGamesPlayed, gameState.hasRated, globalStats]);
+
+  const handleUpdateGlobalStats = async (updates: Partial<GlobalStats>) => {
+    try {
+      await updateDoc(doc(db, 'globalStats', 'main'), updates);
+    } catch (err) {
+      console.error("Failed to update global stats:", err);
     }
   };
 
@@ -278,8 +335,20 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* Full Screen Game Canvas */}
+      {gameState.isStarted && (
+        <div className="fixed inset-0 z-[200] bg-black">
+          <GameCanvas 
+            isStarted={gameState.isStarted} 
+            onGameOver={handleGameOver} 
+            difficultyMultiplier={globalStats?.difficultyMultiplier || 1}
+          />
+        </div>
+      )}
+
       {/* Main App Container */}
-      <div className="relative min-h-screen flex flex-col items-center justify-center p-4 md:p-8">
+      {!gameState.isStarted && (
+        <div className="relative min-h-screen flex flex-col items-center justify-center p-4 md:p-8">
         {/* Background Parallax Effect */}
         <div className="fixed inset-0 z-0 pointer-events-none">
           <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(99,102,241,0.1),transparent_70%)]" />
@@ -312,40 +381,43 @@ export default function App() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              {gameState.playerName && (
-                <>
-                  <button 
-                    onClick={() => setShowLeaderboard(true)}
-                    className="p-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 text-slate-300 transition-all active:scale-95 flex items-center gap-2"
-                    title="Leaderboard"
-                  >
-                    <TrophyIcon className="w-4 h-4 text-yellow-500" />
-                    <span className="text-xs font-bold uppercase tracking-widest hidden md:inline text-yellow-500/80">Leaderboard</span>
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setShowFriends(!showFriends);
-                    }}
-                    className={`p-3 rounded-xl border transition-all active:scale-95 flex items-center gap-2 ${
-                      showFriends 
-                        ? 'bg-cyan-500 border-cyan-400 text-white' 
-                        : 'bg-white/10 hover:bg-white/20 border-white/10 text-slate-300'
-                    }`}
-                  >
-                    <UsersIcon className="w-4 h-4" />
-                    <span className="text-xs font-bold uppercase tracking-widest hidden md:inline">Friends</span>
-                  </button>
-                </>
-              )}
-              <button 
-                onClick={() => setShowAbout(true)}
-                className="px-6 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 backdrop-blur-md flex items-center gap-2 transition-all active:scale-95"
-              >
-                <Info className="w-4 h-4" />
-                <span className="text-xs font-bold uppercase tracking-widest">About</span>
-              </button>
-            </div>
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => {
+                    const muted = soundManager.toggleMute();
+                    setIsMuted(muted);
+                  }}
+                  className="p-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 text-slate-300 transition-all active:scale-95"
+                  title={isMuted ? "Unmute" : "Mute"}
+                >
+                  {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                </button>
+                {gameState.playerName && (
+                  <>
+                    <button 
+                      onClick={() => {
+                        soundManager.playSFX('click');
+                        setShowLeaderboard(true);
+                      }}
+                      className="p-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 text-slate-300 transition-all active:scale-95 flex items-center gap-2"
+                      title="Leaderboard"
+                    >
+                      <TrophyIcon className="w-4 h-4 text-yellow-500" />
+                      <span className="text-xs font-bold uppercase tracking-widest hidden md:inline text-yellow-500/80">Leaderboard</span>
+                    </button>
+                  </>
+                )}
+                <button 
+                  onClick={() => {
+                    soundManager.playSFX('click');
+                    setShowAbout(true);
+                  }}
+                  className="px-6 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 backdrop-blur-md flex items-center gap-2 transition-all active:scale-95"
+                >
+                  <User className="w-4 h-4" />
+                  <span className="text-xs font-bold uppercase tracking-widest">Developer Info</span>
+                </button>
+              </div>
           </header>
 
           {/* Main Content Area */}
@@ -355,6 +427,7 @@ export default function App() {
               <GameCanvas 
                 isStarted={gameState.isStarted} 
                 onGameOver={handleGameOver} 
+                difficultyMultiplier={globalStats?.difficultyMultiplier || 1}
               />
 
               {/* Glassmorphic Menu Overlay */}
@@ -379,22 +452,26 @@ export default function App() {
                           <p className="text-slate-400">Master the neon void.</p>
                         </motion.div>
                         
-                        <div className="flex flex-col gap-4">
-                          <button
-                            onClick={startGame}
-                            className="group relative w-full py-5 bg-white text-black font-black uppercase tracking-widest rounded-2xl flex items-center justify-center gap-3 shadow-2xl shadow-white/10 hover:scale-[1.02] active:scale-95 transition-all"
-                          >
-                            <Play className="w-6 h-6 fill-current" />
-                            Play
-                          </button>
-                          
-                          <button
-                            onClick={() => setShowAbout(true)}
-                            className="w-full py-5 bg-white/5 border border-white/10 text-white font-bold uppercase tracking-widest rounded-2xl flex items-center justify-center gap-3 hover:bg-white/10 transition-all"
-                          >
-                            About the Artist
-                          </button>
-                        </div>
+                          <div className="flex flex-col gap-4">
+                            <button
+                              onClick={startGame}
+                              className="group relative w-full py-5 bg-white text-black font-black uppercase tracking-widest rounded-2xl flex items-center justify-center gap-3 shadow-2xl shadow-white/10 hover:scale-[1.02] active:scale-95 transition-all"
+                            >
+                              <Play className="w-6 h-6 fill-current" />
+                              Play
+                            </button>
+                            
+                            <button
+                              onClick={() => {
+                                soundManager.playSFX('click');
+                                setShowGameInfo(true);
+                              }}
+                              className="w-full py-5 bg-white/5 border border-white/10 text-white font-bold uppercase tracking-widest rounded-2xl flex items-center justify-center gap-3 hover:bg-white/10 transition-all"
+                            >
+                              <Info className="w-6 h-6" />
+                              About the Game
+                            </button>
+                          </div>
 
                         {gameState.playerName && (
                           <div className="pt-8 border-t border-white/10 grid grid-cols-3 gap-4 items-center">
@@ -436,7 +513,7 @@ export default function App() {
                           className="w-full py-5 bg-white text-black font-black uppercase tracking-widest rounded-2xl flex items-center justify-center gap-3 hover:bg-slate-200 transition-all active:scale-95"
                         >
                           <RotateCcw className="w-6 h-6" />
-                          Try Again
+                          Replay
                         </button>
                       </div>
                     )}
@@ -476,12 +553,22 @@ export default function App() {
                   <span className="text-sm font-bold text-green-400">STABLE</span>
                 </div>
               </div>
+
+              {/* Feedback Button */}
+              <button
+                onClick={() => setShowReview(true)}
+                className="w-full py-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center gap-2 hover:bg-white/10 transition-all active:scale-95 text-slate-400 hover:text-white group"
+              >
+                <MessageSquare className="w-4 h-4 group-hover:text-pink-500 transition-colors" />
+                <span className="text-xs font-bold uppercase tracking-widest">Send Feedback</span>
+              </button>
             </aside>
           </main>
         </div>
       </div>
+    )}
 
-      {/* Name Registration Modal */}
+    {/* Name Registration Modal */}
       <AnimatePresence>
         {showNameInput && (
           <motion.div
@@ -516,20 +603,36 @@ export default function App() {
                   {nameError && <p className="text-red-500 text-xs font-mono px-2">{nameError}</p>}
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full py-5 bg-pink-600 hover:bg-pink-500 text-white font-black uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-95"
-                >
-                  Enter the Void
-                  <ChevronRight className="w-5 h-5" />
-                </button>
+                <div className="flex flex-col gap-3">
+                  <button
+                    type="submit"
+                    className="w-full py-5 bg-pink-600 hover:bg-pink-500 text-white font-black uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-95"
+                  >
+                    Enter the Void
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSkipRegistration}
+                    className="w-full py-4 bg-white/5 border border-white/10 text-slate-400 font-bold uppercase tracking-widest rounded-2xl hover:bg-white/10 transition-all"
+                  >
+                    Skip & Play as Guest
+                  </button>
+                </div>
               </form>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* About Modal */}
+      {/* About Game Modal */}
+      <AnimatePresence>
+        {showGameInfo && (
+          <AboutGame onClose={() => setShowGameInfo(false)} />
+        )}
+      </AnimatePresence>
+
+      {/* About Developer Modal */}
       <AnimatePresence>
         {showAbout && (
           <AboutDeveloper 
@@ -542,15 +645,11 @@ export default function App() {
 
       {/* Admin Dashboard Modal */}
       <AnimatePresence>
-        {showAdmin && <AdminDashboard onClose={() => setShowAdmin(false)} />}
-      </AnimatePresence>
-
-      {/* Friends Sidebar */}
-      <AnimatePresence>
-        {showFriends && gameState.playerName && (
-          <FriendsSidebar 
-            playerName={gameState.playerName} 
-            onClose={() => setShowFriends(false)} 
+        {showAdmin && (
+          <AdminDashboard 
+            onClose={() => setShowAdmin(false)} 
+            globalStats={globalStats}
+            onUpdateStats={handleUpdateGlobalStats}
           />
         )}
       </AnimatePresence>

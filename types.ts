@@ -13,6 +13,9 @@ export interface GlobalStats {
   totalPlayers: number;
   universalHighScore: number;
   highScorerName: string;
+  difficultyMultiplier?: number; // New: Speed sequence multiplier
+  totalGamesPlayed?: number;
+  totalMinutesPlayed?: number;
 }
 
 export interface DailyStats {

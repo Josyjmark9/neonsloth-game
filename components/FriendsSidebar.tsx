@@ -1,1 +1,0 @@
-export const FriendsSidebar = () => { return <div>Friends Sidebar Placeholder</div>; };
