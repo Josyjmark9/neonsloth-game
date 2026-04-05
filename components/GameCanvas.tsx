@@ -28,13 +28,15 @@ export default function GameCanvas({ isStarted, onGameOver, difficultyMultiplier
 
   const resetGame = (width: number, height: number) => {
     const groundY = height - 60;
+    const scale = height / 600; // Base height for scaling
+    const playerSize = Math.max(30, Math.min(50, 50 * scale));
     
     // Generate initial buildings
     const buildings = [];
     let currentX = 0;
     while (currentX < width + 400) {
       const bWidth = 60 + Math.random() * 100;
-      const bHeight = 100 + Math.random() * 200;
+      const bHeight = (100 + Math.random() * 200) * scale;
       buildings.push({
         x: currentX,
         width: bWidth,
@@ -47,9 +49,9 @@ export default function GameCanvas({ isStarted, onGameOver, difficultyMultiplier
     gameState.current = {
       player: { 
         x: 80, 
-        y: groundY - 50, 
-        width: 50, 
-        height: 50, 
+        y: groundY - playerSize, 
+        width: playerSize, 
+        height: playerSize, 
         vy: 0, 
         isJumping: false 
       },
@@ -68,7 +70,8 @@ export default function GameCanvas({ isStarted, onGameOver, difficultyMultiplier
   const jump = () => {
     if (!gameState.current.player.isJumping && !gameState.current.isGameOver && isStarted) {
       soundManager.playSFX('jump');
-      gameState.current.player.vy = -15;
+      const scale = (canvasRef.current?.height || 600) / 600;
+      gameState.current.player.vy = -15 * scale;
       gameState.current.player.isJumping = true;
     }
   };
@@ -117,7 +120,8 @@ export default function GameCanvas({ isStarted, onGameOver, difficultyMultiplier
       const { player, obstacles, speed, groundY } = gameState.current;
 
       // Player Physics
-      player.vy += 0.8; // Gravity
+      const scale = canvas.height / 600;
+      player.vy += 0.8 * scale; // Gravity scaled
       player.y += player.vy;
 
       if (player.y > groundY - player.height) {
@@ -134,12 +138,12 @@ export default function GameCanvas({ isStarted, onGameOver, difficultyMultiplier
       gameState.current.frameCount++;
       if (gameState.current.frameCount % spawnInterval === 0) {
         const type = Math.random() > 0.6 ? 'flying' : 'ground';
-        const h = 40 + Math.random() * 40;
-        const y = type === 'ground' ? groundY - h : groundY - 140 - Math.random() * 60;
+        const h = (40 + Math.random() * 40) * scale;
+        const y = type === 'ground' ? groundY - h : groundY - (140 * scale) - Math.random() * (60 * scale);
         obstacles.push({
           x: canvas.width,
           y,
-          width: 40,
+          width: 40 * scale,
           height: h,
           speed: gameState.current.speed,
           type

@@ -12,7 +12,7 @@ class SoundManager {
 
   private constructor() {
     // Initialize BGM
-    this.bgm = new Audio('https://cdn.pixabay.com/download/audio/2022/03/10/audio_c8c8a73456.mp3?filename=synthwave-retro-city-10112.mp3');
+    this.bgm = new Audio('https://cdn.pixabay.com/download/audio/2022/01/21/audio_31183cce05.mp3?filename=cyberpunk-2099-10701.mp3');
     this.bgm.loop = true;
     this.bgm.volume = this.volume * 0.4; // BGM is usually quieter
 

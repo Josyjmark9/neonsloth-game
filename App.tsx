@@ -9,6 +9,7 @@ import AboutGame from './components/AboutGame';
 import AdminDashboard from './components/AdminDashboard';
 import FeedbackModal from './components/FeedbackModal';
 import LeaderboardModal from './components/LeaderboardModal';
+import OrientationOverlay from './components/OrientationOverlay';
 import { GameState, GlobalStats, PlayerData } from './types';
 import { Star, Trophy as TrophyIcon, Volume2, VolumeX } from 'lucide-react';
 import { soundManager } from './lib/sound';
@@ -23,6 +24,8 @@ export default function App() {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [logoClickCount, setLogoClickCount] = useState(0);
   const [showNameInput, setShowNameInput] = useState(false);
+  const [isPortrait, setIsPortrait] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [playerNameInput, setPlayerNameInput] = useState('');
   const [nameError, setNameError] = useState('');
   const [globalStats, setGlobalStats] = useState<GlobalStats | null>(null);
@@ -74,9 +77,20 @@ export default function App() {
 
     // Simulate initial loading for the cool zoom effect
     const timer = setTimeout(() => setIsLoading(false), 2500);
+
+    // Orientation and Mobile detection
+    const checkOrientation = () => {
+      setIsPortrait(window.innerHeight > window.innerWidth);
+      setIsMobile(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768);
+    };
+
+    checkOrientation();
+    window.addEventListener('resize', checkOrientation);
+
     return () => {
       unsub();
       clearTimeout(timer);
+      window.removeEventListener('resize', checkOrientation);
     };
   }, []);
 
@@ -130,6 +144,7 @@ export default function App() {
 
   const handleRegisterName = async (e: React.FormEvent) => {
     e.preventDefault();
+    soundManager.playBGM();
     const name = playerNameInput.trim();
     if (name.length < 3) {
       setNameError('Name must be at least 3 characters');
@@ -175,6 +190,7 @@ export default function App() {
   };
 
   const handleSkipRegistration = async () => {
+    soundManager.playBGM();
     const guestId = Math.floor(1000 + Math.random() * 9000);
     const guestName = `Guest_${guestId}`;
     
@@ -315,8 +331,10 @@ export default function App() {
             >
               <div className="absolute inset-0 bg-white rounded-full blur-3xl opacity-20 animate-pulse" />
               <img 
+                src="https://raw.githubusercontent.com/JosiahJohnmark/Assets/main/JayJayLogo.png"
                 alt="NEONSLOTH LOGO" 
                 className="w-full h-auto relative z-10"
+                referrerPolicy="no-referrer"
                 onError={(e) => {
                   e.currentTarget.src = "https://img.icons8.com/fluency/96/sloth.png";
                 }}
@@ -349,76 +367,63 @@ export default function App() {
       {/* Main App Container */}
       {!gameState.isStarted && (
         <div className="relative min-h-screen flex flex-col items-center justify-center p-4 md:p-8">
-        {/* Background Parallax Effect */}
-        <div className="fixed inset-0 z-0 pointer-events-none">
-          <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(99,102,241,0.1),transparent_70%)]" />
-          <div className="absolute -top-48 -left-48 w-96 h-96 bg-pink-500/10 rounded-full blur-[120px]" />
-          <div className="absolute -bottom-48 -right-48 w-96 h-96 bg-cyan-500/10 rounded-full blur-[120px]" />
-        </div>
+          {/* Background Parallax Effect */}
+          <div className="fixed inset-0 z-0 pointer-events-none">
+            <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(99,102,241,0.1),transparent_70%)]" />
+            <div className="absolute -top-48 -left-48 w-96 h-96 bg-pink-500/10 rounded-full blur-[120px]" />
+            <div className="absolute -bottom-48 -right-48 w-96 h-96 bg-cyan-500/10 rounded-full blur-[120px]" />
+          </div>
 
-        <div className="relative z-10 w-full max-w-5xl flex flex-col gap-8">
-          {/* Header */}
-          <header className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <div 
-                onClick={handleLogoClick}
-                className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center shadow-xl backdrop-blur-md overflow-hidden p-1 cursor-pointer active:scale-95 transition-transform"
-              >
-                <img 
-                  src="https://raw.githubusercontent.com/JosiahJohnmark/Assets/main/JayJayLogo.png" 
-                  alt="NEONSLOTH LOGO" 
-                  className="w-full h-auto object-contain"
-                  onError={(e) => {
-                    e.currentTarget.src = "https://img.icons8.com/fluency/96/sloth.png";
-                  }}
-                />
+          <div className="relative z-10 w-full max-w-5xl flex flex-col gap-4 md:gap-8">
+            {/* Header */}
+            <header className="flex flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3 md:gap-4">
+                <div 
+                  onClick={handleLogoClick}
+                  className="w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center shadow-xl backdrop-blur-md overflow-hidden p-1 cursor-pointer active:scale-95 transition-transform"
+                >
+                  <img 
+                    src="https://raw.githubusercontent.com/JosiahJohnmark/Assets/main/JayJayLogo.png" 
+                    alt="NEONSLOTH LOGO" 
+                    className="w-full h-auto object-contain"
+                    referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      e.currentTarget.src = "https://img.icons8.com/fluency/96/sloth.png";
+                    }}
+                  />
+                </div>
+                <div className="space-y-0">
+                  <h1 className="text-2xl md:text-5xl font-black italic tracking-tighter uppercase leading-none">
+                    neon<span className="text-pink-500">SLOTH</span>
+                  </h1>
+                  <p className="text-[8px] md:text-[10px] text-slate-500 font-mono tracking-[0.2em] md:tracking-[0.3em] uppercase">Universal Edition</p>
+                </div>
               </div>
-              <div className="space-y-0.5">
-                <h1 className="text-4xl md:text-5xl font-black italic tracking-tighter uppercase leading-none">
-                  neon<span className="text-pink-500">SLOTH</span>
-                </h1>
-                <p className="text-[10px] text-slate-500 font-mono tracking-[0.3em] uppercase">Universal Edition</p>
-              </div>
-            </div>
 
-              <div className="flex items-center gap-3">
-                <button 
-                  onClick={() => {
-                    const muted = soundManager.toggleMute();
-                    setIsMuted(muted);
-                  }}
-                  className="p-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 text-slate-300 transition-all active:scale-95"
-                  title={isMuted ? "Unmute" : "Mute"}
-                >
-                  {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-                </button>
-                {gameState.playerName && (
-                  <>
-                    <button 
-                      onClick={() => {
-                        soundManager.playSFX('click');
-                        setShowLeaderboard(true);
-                      }}
-                      className="p-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 text-slate-300 transition-all active:scale-95 flex items-center gap-2"
-                      title="Leaderboard"
-                    >
-                      <TrophyIcon className="w-4 h-4 text-yellow-500" />
-                      <span className="text-xs font-bold uppercase tracking-widest hidden md:inline text-yellow-500/80">Leaderboard</span>
-                    </button>
-                  </>
-                )}
-                <button 
-                  onClick={() => {
-                    soundManager.playSFX('click');
-                    setShowAbout(true);
-                  }}
-                  className="px-6 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 backdrop-blur-md flex items-center gap-2 transition-all active:scale-95"
-                >
-                  <User className="w-4 h-4" />
-                  <span className="text-xs font-bold uppercase tracking-widest">Developer Info</span>
-                </button>
-              </div>
-          </header>
+                <div className="flex items-center gap-2 md:gap-3">
+                  <button 
+                    onClick={() => {
+                      soundManager.playSFX('click');
+                      const muted = soundManager.toggleMute();
+                      setIsMuted(muted);
+                    }}
+                    className="p-2 md:p-3 rounded-lg md:rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 text-slate-300 transition-all active:scale-95"
+                    title={isMuted ? "Unmute" : "Mute"}
+                  >
+                    {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                  </button>
+                  <button 
+                    onClick={() => {
+                      soundManager.playSFX('click');
+                      setShowAbout(true);
+                    }}
+                    className="p-2 md:px-6 md:py-2 rounded-lg md:rounded-full bg-white/10 hover:bg-white/20 border border-white/10 backdrop-blur-md flex items-center gap-2 transition-all active:scale-95"
+                  >
+                    <User className="w-4 h-4" />
+                    <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest hidden sm:inline">Developer Info</span>
+                  </button>
+                </div>
+            </header>
 
           {/* Main Content Area */}
           <main className="grid lg:grid-cols-[1fr_350px] gap-8 items-start">
@@ -556,7 +561,10 @@ export default function App() {
 
               {/* Feedback Button */}
               <button
-                onClick={() => setShowReview(true)}
+                onClick={() => {
+                  soundManager.playSFX('click');
+                  setShowReview(true);
+                }}
                 className="w-full py-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center gap-2 hover:bg-white/10 transition-all active:scale-95 text-slate-400 hover:text-white group"
               >
                 <MessageSquare className="w-4 h-4 group-hover:text-pink-500 transition-colors" />
@@ -606,6 +614,7 @@ export default function App() {
                 <div className="flex flex-col gap-3">
                   <button
                     type="submit"
+                    onClick={() => soundManager.playSFX('click')}
                     className="w-full py-5 bg-pink-600 hover:bg-pink-500 text-white font-black uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-95"
                   >
                     Enter the Void
@@ -613,7 +622,10 @@ export default function App() {
                   </button>
                   <button
                     type="button"
-                    onClick={handleSkipRegistration}
+                    onClick={() => {
+                      soundManager.playSFX('click');
+                      handleSkipRegistration();
+                    }}
                     className="w-full py-4 bg-white/5 border border-white/10 text-slate-400 font-bold uppercase tracking-widest rounded-2xl hover:bg-white/10 transition-all"
                   >
                     Skip & Play as Guest
@@ -628,7 +640,10 @@ export default function App() {
       {/* About Game Modal */}
       <AnimatePresence>
         {showGameInfo && (
-          <AboutGame onClose={() => setShowGameInfo(false)} />
+          <AboutGame onClose={() => {
+            soundManager.playSFX('click');
+            setShowGameInfo(false);
+          }} />
         )}
       </AnimatePresence>
 
@@ -636,9 +651,15 @@ export default function App() {
       <AnimatePresence>
         {showAbout && (
           <AboutDeveloper 
-            onClose={() => setShowAbout(false)} 
+            onClose={() => {
+              soundManager.playSFX('click');
+              setShowAbout(false);
+            }} 
             globalStats={globalStats}
-            onOpenAdmin={() => setShowAdmin(true)}
+            onOpenAdmin={() => {
+              soundManager.playSFX('click');
+              setShowAdmin(true);
+            }}
           />
         )}
       </AnimatePresence>
@@ -647,7 +668,10 @@ export default function App() {
       <AnimatePresence>
         {showAdmin && (
           <AdminDashboard 
-            onClose={() => setShowAdmin(false)} 
+            onClose={() => {
+              soundManager.playSFX('click');
+              setShowAdmin(false);
+            }} 
             globalStats={globalStats}
             onUpdateStats={handleUpdateGlobalStats}
           />
@@ -660,7 +684,10 @@ export default function App() {
           <FeedbackModal
             type="review"
             playerName={gameState.playerName}
-            onClose={() => setShowReview(false)}
+            onClose={() => {
+              soundManager.playSFX('click');
+              setShowReview(false);
+            }}
             onSuccess={() => setGameState(prev => ({ ...prev, hasRated: true }))}
           />
         )}
@@ -669,7 +696,17 @@ export default function App() {
       {/* Leaderboard Modal */}
       <AnimatePresence>
         {showLeaderboard && (
-          <LeaderboardModal onClose={() => setShowLeaderboard(false)} />
+          <LeaderboardModal onClose={() => {
+            soundManager.playSFX('click');
+            setShowLeaderboard(false);
+          }} />
+        )}
+      </AnimatePresence>
+
+      {/* Orientation Suggestion */}
+      <AnimatePresence>
+        {isMobile && isPortrait && (
+          <OrientationOverlay />
         )}
       </AnimatePresence>
     </div>

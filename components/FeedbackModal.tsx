@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { X, Star, Send } from 'lucide-react';
+import { soundManager } from '../lib/sound';
 
 interface FeedbackModalProps {
   type: 'review' | 'feedback';
@@ -43,7 +44,10 @@ export default function FeedbackModal({ type, playerName, onClose, onSuccess }: 
               key={star} 
               onMouseEnter={() => setHoveredRating(star)}
               onMouseLeave={() => setHoveredRating(0)}
-              onClick={() => setRating(star)}
+              onClick={() => {
+                soundManager.playSFX('click');
+                setRating(star);
+              }}
               className="p-2 transition-all hover:scale-110 active:scale-95"
             >
               <Star 

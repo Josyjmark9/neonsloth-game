@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { X, Trophy, Star, Zap, User, ChevronRight, BarChart3, Users } from 'lucide-react';
+import { soundManager } from '../lib/sound';
 
 interface LeaderboardModalProps {
   onClose: () => void;
@@ -36,7 +37,11 @@ export default function LeaderboardModal({ onClose }: LeaderboardModalProps) {
 
         <div className="flex-1 overflow-y-auto pr-4 space-y-6">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((rank) => (
-            <div key={rank} className="p-8 rounded-[32px] bg-white/5 border border-white/10 flex items-center gap-8 group hover:bg-white/10 transition-all cursor-pointer">
+            <div 
+              key={rank} 
+              onClick={() => soundManager.playSFX('click')}
+              className="p-8 rounded-[32px] bg-white/5 border border-white/10 flex items-center gap-8 group hover:bg-white/10 transition-all cursor-pointer"
+            >
               <div className="w-12 h-12 flex items-center justify-center text-2xl font-black italic text-slate-500 group-hover:text-yellow-500 transition-colors">
                 #{rank}
               </div>

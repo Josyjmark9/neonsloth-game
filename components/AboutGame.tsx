@@ -17,13 +17,13 @@ export default function AboutGame({ onClose }: AboutGameProps) {
       <motion.div
         initial={{ scale: 0.9, y: 20 }}
         animate={{ scale: 1, y: 0 }}
-        className="w-full max-w-2xl bg-white/10 border border-white/20 rounded-[40px] p-10 shadow-2xl relative overflow-hidden max-h-[90vh] overflow-y-auto custom-scrollbar"
+        className="w-full max-w-2xl bg-white/10 border border-white/20 rounded-3xl md:rounded-[40px] p-6 md:p-10 shadow-2xl relative overflow-hidden max-h-[90vh] overflow-y-auto custom-scrollbar"
       >
         <button 
           onClick={onClose} 
-          className="absolute top-8 right-8 p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-colors z-10"
+          className="absolute top-4 right-4 md:top-8 md:right-8 p-2 md:p-3 bg-white/5 hover:bg-white/10 rounded-xl md:rounded-2xl transition-colors z-10"
         >
-          <X className="w-6 h-6 text-white" />
+          <X className="w-5 h-5 md:w-6 md:h-6 text-white" />
         </button>
 
         <div className="space-y-10">
